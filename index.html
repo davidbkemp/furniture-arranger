@@ -157,6 +157,11 @@
     let isDragging = false;
     let dragOffset = { x: 0, y: 0 };
 
+    function keepFurnitureInBounds(f) {
+        f.x = Math.max(f.width / 2, Math.min(roomWidth - f.width / 2, f.x));
+        f.y = Math.max(f.length / 2, Math.min(roomLength - f.length / 2, f.y));
+    }
+
     // Initialize
     function init() {
         updateRoom();
@@ -179,6 +184,7 @@
         const width = parseInt(document.getElementById('furniture-width').value);
         const length = parseInt(document.getElementById('furniture-length').value);
 
+        // x and y are the centre of the furniture item
         const newFurniture = {
             id: Date.now(),
             name: name,
@@ -186,9 +192,10 @@
             length: length,
             x: 50,
             y: 50,
-            rotation: 0,
             color: `hsl(${Math.random() * 360}, 70%, 70%)`
         };
+
+        keepFurnitureInBounds(newFurniture);
 
         furniture.push(newFurniture);
         updateFurnitureList();
@@ -229,8 +236,7 @@
             ctx.save();
 
             // Translate to furniture center
-            ctx.translate(f.x + f.width / 2, f.y + f.length / 2);
-            ctx.rotate(f.rotation * Math.PI / 180);
+            ctx.translate(f.x, f.y);
 
             // Draw furniture rectangle
             ctx.fillStyle = f.color;
@@ -257,12 +263,8 @@
             const f = furniture[i];
 
             // Transform point to furniture's local coordinates
-            const cos = Math.cos(-f.rotation * Math.PI / 180);
-            const sin = Math.sin(-f.rotation * Math.PI / 180);
-            const dx = x - (f.x + f.width / 2);
-            const dy = y - (f.y + f.length / 2);
-            const localX = dx * cos - dy * sin;
-            const localY = dx * sin + dy * cos;
+            const localX = x - f.x;
+            const localY = y - f.y;
 
             if (Math.abs(localX) <= f.width / 2 && Math.abs(localY) <= f.length / 2) {
                 return f;
@@ -295,9 +297,7 @@
                 selectedFurniture.x = x - dragOffset.x;
                 selectedFurniture.y = y - dragOffset.y;
 
-                // Keep furniture within room bounds
-                selectedFurniture.x = Math.max(0, Math.min(roomWidth - selectedFurniture.width, selectedFurniture.x));
-                selectedFurniture.y = Math.max(0, Math.min(roomLength - selectedFurniture.length, selectedFurniture.y));
+                keepFurnitureInBounds(selectedFurniture);
 
                 draw();
             }
@@ -317,16 +317,12 @@
 
             const f = getFurnitureAt(x, y);
             if (f) {
-                f.rotation = (f.rotation + 90) % 360;
-
                 // Swap dimensions when rotating
                 const temp = f.width;
                 f.width = f.length;
                 f.length = temp;
 
-                // Ensure furniture stays in bounds after rotation
-                f.x = Math.max(0, Math.min(roomWidth - f.width, f.x));
-                f.y = Math.max(0, Math.min(roomLength - f.length, f.y));
+                keepFurnitureInBounds(f);
 
                 draw();
             }
