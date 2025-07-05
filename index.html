@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Furniture Planner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: inline-block;
+            width: 150px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 5px;
+        }
+
+        input[type="text"] {
+            width: 150px;
+            padding: 5px;
+        }
+
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button.danger {
+            background-color: #dc3545;
+        }
+
+        button.danger:hover {
+            background-color: #c82333;
+        }
+
+        #canvas-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: auto;
+        }
+
+        #room-canvas {
+            border: 1px solid #ddd;
+            cursor: move;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .furniture-list {
+            margin-top: 10px;
+        }
+
+        .furniture-item {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+
+        .furniture-item button {
+            padding: 2px 5px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Room Furniture Planner</h1>
+
+    <div class="controls">
+        <h3>Room Dimensions</h3>
+        <div class="control-group">
+            <label>Width (cm):</label>
+            <input type="number" id="room-width" value="500">
+            <label>Length (cm):</label>
+            <input type="number" id="room-length" value="400">
+            <button onclick="updateRoom()">Update Room</button>
+        </div>
+
+        <h3>Add Furniture</h3>
+        <div class="control-group">
+            <label>Name:</label>
+            <input type="text" id="furniture-name" placeholder="e.g. Sofa">
+        </div>
+        <div class="control-group">
+            <label>Width (cm):</label>
+            <input type="number" id="furniture-width" value="200">
+            <label>Length (cm):</label>
+            <input type="number" id="furniture-length" value="80">
+        </div>
+        <div class="control-group">
+            <button onclick="addFurniture()">Add Furniture</button>
+            <button onclick="saveLayout()">Save Layout</button>
+            <button onclick="loadLayout()">Load Layout</button>
+            <button onclick="clearAll()" class="danger">Clear All</button>
+        </div>
+
+        <div class="furniture-list" id="furniture-list"></div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="room-canvas"></canvas>
+    </div>
+
+    <p style="margin-top: 10px; color: #666;">
+        • Click and drag furniture to move<br>
+        • Right-click furniture to rotate<br>
+        • Scale: 1 pixel = 1 cm
+    </p>
+</div>
+
+<script>
+    const canvas = document.getElementById('room-canvas');
+    const ctx = canvas.getContext('2d');
+
+    let roomWidth = 500;
+    let roomLength = 400;
+    let furniture = [];
+    let selectedFurniture = null;
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+
+    // Initialize
+    function init() {
+        updateRoom();
+        loadLayout();
+        setupEventListeners();
+    }
+
+    function updateRoom() {
+        roomWidth = parseInt(document.getElementById('room-width').value);
+        roomLength = parseInt(document.getElementById('room-length').value);
+
+        canvas.width = roomWidth;
+        canvas.height = roomLength;
+
+        draw();
+    }
+
+    function addFurniture() {
+        const name = document.getElementById('furniture-name').value || 'Furniture';
+        const width = parseInt(document.getElementById('furniture-width').value);
+        const length = parseInt(document.getElementById('furniture-length').value);
+
+        const newFurniture = {
+            id: Date.now(),
+            name: name,
+            width: width,
+            length: length,
+            x: 50,
+            y: 50,
+            rotation: 0,
+            color: `hsl(${Math.random() * 360}, 70%, 70%)`
+        };
+
+        furniture.push(newFurniture);
+        updateFurnitureList();
+        draw();
+
+        // Clear inputs
+        document.getElementById('furniture-name').value = '';
+    }
+
+    function deleteFurniture(id) {
+        furniture = furniture.filter(f => f.id !== id);
+        updateFurnitureList();
+        draw();
+    }
+
+    function updateFurnitureList() {
+        const list = document.getElementById('furniture-list');
+        list.innerHTML = furniture.map(f => `
+                <div class="furniture-item">
+                    ${f.name} (${f.width}×${f.length})
+                    <button onclick="deleteFurniture(${f.id})" class="danger">Delete</button>
+                </div>
+            `).join('');
+    }
+
+    function draw() {
+        // Clear canvas
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw room outline
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+
+        // Draw furniture
+        furniture.forEach(f => {
+            ctx.save();
+
+            // Translate to furniture center
+            ctx.translate(f.x + f.width / 2, f.y + f.length / 2);
+            ctx.rotate(f.rotation * Math.PI / 180);
+
+            // Draw furniture rectangle
+            ctx.fillStyle = f.color;
+            ctx.fillRect(-f.width / 2, -f.length / 2, f.width, f.length);
+
+            // Draw border
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-f.width / 2, -f.length / 2, f.width, f.length);
+
+            // Draw label
+            ctx.fillStyle = '#000';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(f.name, 0, 0);
+
+            ctx.restore();
+        });
+    }
+
+    function getFurnitureAt(x, y) {
+        for (let i = furniture.length - 1; i >= 0; i--) {
+            const f = furniture[i];
+
+            // Transform point to furniture's local coordinates
+            const cos = Math.cos(-f.rotation * Math.PI / 180);
+            const sin = Math.sin(-f.rotation * Math.PI / 180);
+            const dx = x - (f.x + f.width / 2);
+            const dy = y - (f.y + f.length / 2);
+            const localX = dx * cos - dy * sin;
+            const localY = dx * sin + dy * cos;
+
+            if (Math.abs(localX) <= f.width / 2 && Math.abs(localY) <= f.length / 2) {
+                return f;
+            }
+        }
+        return null;
+    }
+
+    function setupEventListeners() {
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            selectedFurniture = getFurnitureAt(x, y);
+
+            if (selectedFurniture) {
+                isDragging = true;
+                dragOffset.x = x - selectedFurniture.x;
+                dragOffset.y = y - selectedFurniture.y;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging && selectedFurniture) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                selectedFurniture.x = x - dragOffset.x;
+                selectedFurniture.y = y - dragOffset.y;
+
+                // Keep furniture within room bounds
+                selectedFurniture.x = Math.max(0, Math.min(roomWidth - selectedFurniture.width, selectedFurniture.x));
+                selectedFurniture.y = Math.max(0, Math.min(roomLength - selectedFurniture.length, selectedFurniture.y));
+
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            selectedFurniture = null;
+        });
+
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const f = getFurnitureAt(x, y);
+            if (f) {
+                f.rotation = (f.rotation + 90) % 360;
+
+                // Swap dimensions when rotating
+                const temp = f.width;
+                f.width = f.length;
+                f.length = temp;
+
+                // Ensure furniture stays in bounds after rotation
+                f.x = Math.max(0, Math.min(roomWidth - f.width, f.x));
+                f.y = Math.max(0, Math.min(roomLength - f.length, f.y));
+
+                draw();
+            }
+        });
+    }
+
+    function saveLayout() {
+        const data = {
+            roomWidth,
+            roomLength,
+            furniture
+        };
+        localStorage.setItem('roomLayout', JSON.stringify(data));
+        alert('Layout saved!');
+    }
+
+    function loadLayout() {
+        const saved = localStorage.getItem('roomLayout');
+        if (saved) {
+            const data = JSON.parse(saved);
+            roomWidth = data.roomWidth;
+            roomLength = data.roomLength;
+            furniture = data.furniture || [];
+
+            document.getElementById('room-width').value = roomWidth;
+            document.getElementById('room-length').value = roomLength;
+
+            updateRoom();
+            updateFurnitureList();
+        }
+    }
+
+    function clearAll() {
+        if (confirm('Clear all furniture?')) {
+            furniture = [];
+            updateFurnitureList();
+            draw();
+        }
+    }
+
+    // Initialize on load
+    init();
+</script>
+</body>
+</html>
