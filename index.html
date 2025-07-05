@@ -130,6 +130,9 @@
             <button onclick="saveLayout()">Save Layout</button>
             <button onclick="loadLayout()">Load Layout</button>
             <button onclick="clearAll()" class="danger">Clear All</button>
+            <button onclick="downloadLayout()">Download Layout</button>
+            <input type="file" id="upload-layout" style="display:none" accept=".json" onchange="uploadLayout(event)">
+            <button onclick="document.getElementById('upload-layout').click()">Upload Layout</button>
         </div>
 
         <div class="furniture-list" id="furniture-list"></div>
@@ -361,6 +364,44 @@
             updateFurnitureList();
             draw();
         }
+    }
+
+    function downloadLayout() {
+        const data = {
+            roomWidth,
+            roomLength,
+            furniture
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "room-layout.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function uploadLayout(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                roomWidth = data.roomWidth;
+                roomLength = data.roomLength;
+                furniture = data.furniture || [];
+                document.getElementById('room-width').value = roomWidth;
+                document.getElementById('room-length').value = roomLength;
+                updateRoom();
+                updateFurnitureList();
+            } catch (err) {
+                alert("Invalid layout file.");
+            }
+        };
+        reader.readAsText(file);
     }
 
     // Initialize on load
