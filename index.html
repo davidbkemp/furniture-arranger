@@ -235,43 +235,12 @@
             `).join('');
     }
 
-    function drawArcWithArrow(ctx, centerX, centerY, r) {
-        // Convert clock positions to radians
-        // 7 o'clock = 210 degrees = 7π/6 radians
-        // 2 o'clock = 60 degrees = π/3 radians
-        const startAngle = 5 * Math.PI / 6;
-        const endAngle = 11 * Math.PI / 6;
-
-        // Draw the arc
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, r, startAngle, endAngle, true);
-        ctx.stroke();
-
-        // Calculate the end point of the arc
-        const endX = centerX + r * Math.cos(endAngle);
-        const endY = centerY + r * Math.sin(endAngle);
-
-        // Calculate the tangent angle at the end of the arc
-        // For a clockwise arc, the tangent points perpendicular to the radius
-        const tangentAngle = endAngle + Math.PI / 2;
-
-        // Arrow properties
-        const arrowLength = r / 2;
-        const arrowAngle = Math.PI / 6; // 30 degrees for arrow wings
-
-        // Calculate arrow points
-        const arrow1X = endX + arrowLength * Math.cos(tangentAngle - arrowAngle);
-        const arrow1Y = endY + arrowLength * Math.sin(tangentAngle - arrowAngle);
-
-        const arrow2X = endX + arrowLength * Math.cos(tangentAngle + arrowAngle);
-        const arrow2Y = endY + arrowLength * Math.sin(tangentAngle + arrowAngle);
-
-        // Draw the arrowhead
-        ctx.beginPath();
-        ctx.moveTo(arrow1X, arrow1Y);
-        ctx.lineTo(endX, endY);
-        ctx.lineTo(arrow2X, arrow2Y);
-        ctx.stroke();
+    function drawRotationIcon(icon) {
+        ctx.font = `${2 * icon.size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#333';
+        ctx.fillText('↺', icon.x, icon.y);
     }
 
     function draw() {
@@ -307,27 +276,23 @@
             ctx.textBaseline = 'middle';
             ctx.fillText(f.name, 0, 0);
 
-            const iconSize = 18;
-            const iconOffsetX = -f.width / 2 + 8;
-            const iconOffsetY = -f.length / 2 + 8;
-            drawArcWithArrow(ctx, iconOffsetX, iconOffsetY, iconSize/2 - 2)
-            // Store icon position for hit detection
-            f._icon = {
-                x: f.x + iconOffsetX,
-                y: f.y + iconOffsetY,
-                r: iconSize / 2
-            };
-
-
             ctx.restore();
+
+            f.rotationIcon = {
+                x: f.x + -f.width / 2 + 8,
+                y: f.y + -f.length / 2 + 8,
+                size: 9
+            };
+            drawRotationIcon(f.rotationIcon);
+
         });
     }
 
     function isOnRotationIcon(f, x, y) {
-        if (!f._icon) return false;
-        const dx = x - f._icon.x;
-        const dy = y - f._icon.y;
-        return dx * dx + dy * dy <= f._icon.r * f._icon.r;
+        if (!f.rotationIcon) return false;
+        const dx = x - f.rotationIcon.x;
+        const dy = y - f.rotationIcon.y;
+        return dx * dx + dy * dy <= f.rotationIcon.size * f.rotationIcon.size;
     }
 
     function getFurnitureAt(x, y) {
