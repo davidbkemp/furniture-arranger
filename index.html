@@ -193,8 +193,8 @@
             name: name,
             width: width,
             length: length,
-            x: 50,
-            y: 50,
+            x: 150,
+            y: 150,
             color: `hsl(${Math.random() * 360}, 70%, 70%)`
         };
 
@@ -214,6 +214,17 @@
         draw();
     }
 
+    function rotate(f) {
+        // Swap dimensions when rotating
+        const temp = f.width;
+        f.width = f.length;
+        f.length = temp;
+
+        keepFurnitureInBounds(f);
+
+        draw();
+    }
+
     function updateFurnitureList() {
         const list = document.getElementById('furniture-list');
         list.innerHTML = furniture.map(f => `
@@ -222,6 +233,45 @@
                     <button onclick="deleteFurniture(${f.id})" class="danger">Delete</button>
                 </div>
             `).join('');
+    }
+
+    function drawArcWithArrow(ctx, centerX, centerY, r) {
+        // Convert clock positions to radians
+        // 7 o'clock = 210 degrees = 7π/6 radians
+        // 2 o'clock = 60 degrees = π/3 radians
+        const startAngle = 5 * Math.PI / 6;
+        const endAngle = 11 * Math.PI / 6;
+
+        // Draw the arc
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r, startAngle, endAngle, true);
+        ctx.stroke();
+
+        // Calculate the end point of the arc
+        const endX = centerX + r * Math.cos(endAngle);
+        const endY = centerY + r * Math.sin(endAngle);
+
+        // Calculate the tangent angle at the end of the arc
+        // For a clockwise arc, the tangent points perpendicular to the radius
+        const tangentAngle = endAngle + Math.PI / 2;
+
+        // Arrow properties
+        const arrowLength = r / 2;
+        const arrowAngle = Math.PI / 6; // 30 degrees for arrow wings
+
+        // Calculate arrow points
+        const arrow1X = endX + arrowLength * Math.cos(tangentAngle - arrowAngle);
+        const arrow1Y = endY + arrowLength * Math.sin(tangentAngle - arrowAngle);
+
+        const arrow2X = endX + arrowLength * Math.cos(tangentAngle + arrowAngle);
+        const arrow2Y = endY + arrowLength * Math.sin(tangentAngle + arrowAngle);
+
+        // Draw the arrowhead
+        ctx.beginPath();
+        ctx.moveTo(arrow1X, arrow1Y);
+        ctx.lineTo(endX, endY);
+        ctx.lineTo(arrow2X, arrow2Y);
+        ctx.stroke();
     }
 
     function draw() {
@@ -257,8 +307,27 @@
             ctx.textBaseline = 'middle';
             ctx.fillText(f.name, 0, 0);
 
+            const iconSize = 18;
+            const iconOffsetX = -f.width / 2 + 8;
+            const iconOffsetY = -f.length / 2 + 8;
+            drawArcWithArrow(ctx, iconOffsetX, iconOffsetY, iconSize/2 - 2)
+            // Store icon position for hit detection
+            f._icon = {
+                x: f.x + iconOffsetX,
+                y: f.y + iconOffsetY,
+                r: iconSize / 2
+            };
+
+
             ctx.restore();
         });
+    }
+
+    function isOnRotationIcon(f, x, y) {
+        if (!f._icon) return false;
+        const dx = x - f._icon.x;
+        const dy = y - f._icon.y;
+        return dx * dx + dy * dy <= f._icon.r * f._icon.r;
     }
 
     function getFurnitureAt(x, y) {
@@ -285,9 +354,14 @@
             selectedFurniture = getFurnitureAt(x, y);
 
             if (selectedFurniture) {
-                isDragging = true;
-                dragOffset.x = x - selectedFurniture.x;
-                dragOffset.y = y - selectedFurniture.y;
+                if (isOnRotationIcon(selectedFurniture, x, y)) {
+                    rotate(selectedFurniture);
+                } else {
+                    // Start dragging
+                    isDragging = true;
+                    dragOffset.x = x - selectedFurniture.x;
+                    dragOffset.y = y - selectedFurniture.y;
+                }
             }
         });
 
@@ -320,17 +394,57 @@
 
             const f = getFurnitureAt(x, y);
             if (f) {
-                // Swap dimensions when rotating
-                const temp = f.width;
-                f.width = f.length;
-                f.length = temp;
-
-                keepFurnitureInBounds(f);
-
-                draw();
+                rotate(f);
             }
         });
     }
+
+    // Touch support for move and rotate
+    let lastTouch = null;
+    let touchStartFurniture = null;
+
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.touches[0].clientX - rect.left;
+            const y = e.touches[0].clientY - rect.top;
+            let f = getFurnitureAt(x, y);
+            if (f) {
+                if (isOnRotationIcon(f, x, y)) {
+                    rotate(f);
+                } else {
+                    // Start dragging
+                    isDragging = true;
+                    selectedFurniture = f;
+                    touchStartFurniture = f;
+                    dragOffset.x = x - selectedFurniture.x;
+                    dragOffset.y = y - selectedFurniture.y;
+                    lastTouch = { x, y };
+                }
+            }
+        }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (isDragging && selectedFurniture && e.touches.length === 1) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.touches[0].clientX - rect.left;
+            const y = e.touches[0].clientY - rect.top;
+            selectedFurniture.x = x - dragOffset.x;
+            selectedFurniture.y = y - dragOffset.y;
+            keepFurnitureInBounds(selectedFurniture);
+            draw();
+            lastTouch = { x, y };
+            e.preventDefault();
+        }
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+        isDragging = false;
+        selectedFurniture = null;
+        touchStartFurniture = null;
+    });
+
 
     function saveLayout() {
         const data = {
