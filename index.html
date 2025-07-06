@@ -143,8 +143,6 @@
     </div>
 
     <p style="margin-top: 10px; color: #666;">
-        • Click and drag furniture to move<br>
-        • Right-click furniture to rotate<br>
         • Scale: 1 pixel = 1 cm
     </p>
 </div>
@@ -247,6 +245,18 @@
         // Clear canvas
         ctx.fillStyle = '#f8f9fa';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw grid of dots every 10 pixels
+        ctx.save();
+        ctx.fillStyle = '#bbb';
+        for (let x = 0; x < canvas.width; x += 10) {
+            for (let y = 0; y < canvas.height; y += 10) {
+                ctx.beginPath();
+                ctx.arc(x, y, 1.2, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
 
         // Draw room outline
         ctx.strokeStyle = '#333';
