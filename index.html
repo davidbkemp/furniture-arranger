@@ -127,12 +127,10 @@
         </div>
         <div class="control-group">
             <button onclick="addFurniture()">Add Furniture</button>
-            <button onclick="saveLayout()">Save Layout</button>
-            <button onclick="loadLayout()">Load Layout</button>
-            <button onclick="clearAll()" class="danger">Clear All</button>
             <button onclick="downloadLayout()">Download Layout</button>
             <input type="file" id="upload-layout" style="display:none" accept=".json" onchange="uploadLayout(event)">
             <button onclick="document.getElementById('upload-layout').click()">Upload Layout</button>
+            <button onclick="clearAll()" class="danger">Clear All</button>
         </div>
 
         <div class="furniture-list" id="furniture-list"></div>
@@ -165,8 +163,9 @@
 
     // Initialize
     function init() {
-        updateRoom();
         loadLayout();
+        updateRoom();
+        updateFurnitureList();
         setupEventListeners();
     }
 
@@ -178,6 +177,7 @@
         canvas.height = roomLength;
 
         draw();
+        saveLayout(); // Auto-save after room update
     }
 
     function addFurniture() {
@@ -201,6 +201,7 @@
         furniture.push(newFurniture);
         updateFurnitureList();
         draw();
+        saveLayout(); // Auto-save after adding
 
         // Clear inputs
         document.getElementById('furniture-name').value = '';
@@ -210,6 +211,7 @@
         furniture = furniture.filter(f => f.id !== id);
         updateFurnitureList();
         draw();
+        saveLayout(); // Auto-save after deleting
     }
 
     function rotate(f) {
@@ -221,6 +223,7 @@
         keepFurnitureInBounds(f);
 
         draw();
+        saveLayout(); // Auto-save after rotating
     }
 
     function updateFurnitureList() {
@@ -358,6 +361,7 @@
         canvas.addEventListener('mouseup', () => {
             isDragging = false;
             selectedFurniture = null;
+            saveLayout();
         });
 
         canvas.addEventListener('contextmenu', (e) => {
@@ -418,6 +422,7 @@
         isDragging = false;
         selectedFurniture = null;
         touchStartFurniture = null;
+        saveLayout();
     });
 
 
@@ -428,7 +433,6 @@
             furniture
         };
         localStorage.setItem('roomLayout', JSON.stringify(data));
-        alert('Layout saved!');
     }
 
     function loadLayout() {
@@ -441,9 +445,6 @@
 
             document.getElementById('room-width').value = roomWidth;
             document.getElementById('room-length').value = roomLength;
-
-            updateRoom();
-            updateFurnitureList();
         }
     }
 
@@ -452,6 +453,7 @@
             furniture = [];
             updateFurnitureList();
             draw();
+            saveLayout();
         }
     }
 
@@ -486,6 +488,7 @@
                 document.getElementById('room-length').value = roomLength;
                 updateRoom();
                 updateFurnitureList();
+                saveLayout(); // Auto-save after upload
             } catch (err) {
                 alert("Invalid layout file.");
             }
